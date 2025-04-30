@@ -1,0 +1,1226 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>我的书架</title>
+    <style>
+        :root {
+            --sidebar-width: 320px;
+            --primary-color: #4CAF50;
+            --sidebar-bg: #f5f5f5;
+            --danger-color: #f44336;
+        }
+        
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 0;
+            padding: 0;
+            display: flex;
+            min-height: 100vh;
+            background: #f9f9f9;
+            overflow: hidden;
+        }
+        
+        /* 侧边栏样式 */
+        .sidebar {
+            width: var(--sidebar-width);
+            background: var(--sidebar-bg);
+            padding: 15px;
+            box-sizing: border-box;
+            border-right: 1px solid #ddd;
+            height: 100vh;
+            position: fixed;
+            left: 0;
+            top: 0;
+            transition: transform 0.3s ease;
+            z-index: 100;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column; /* 确保内容垂直排列 */
+        }
+        
+        .sidebar.collapsed {
+            transform: translateX(calc(-1 * var(--sidebar-width)));
+        }
+        
+        .collapse-btn {
+            position: fixed;
+            left: var(--sidebar-width);
+            top: 40px;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 5px 3px;
+            cursor: pointer;
+            border-radius: 0 4px 4px 0;
+            z-index: 1000;
+            transition: left 0.3s ease;
+        }
+        
+        .sidebar.collapsed + .collapse-btn {
+            left: 0;
+        }
+
+        /* 主内容区 */
+        .main-content {
+            flex: 1;
+            padding: 20px;
+            margin-left: var(--sidebar-width);
+            transition: margin-left 0.3s ease;
+            min-height: 100vh;
+            box-sizing: border-box;
+            overflow-y: auto;
+            height: 100vh;
+            z-index: 1;
+        }
+        .sidebar.collapsed ~ .main-content {
+            margin-left: 0;
+        }
+
+        /* 分类筛选区域 */
+        .filter-area {
+            margin-bottom: 15px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .category-filter {
+            display: flex;
+            align-items: center;
+            min-width: 180px;
+        }
+        
+        .search-box {
+            flex: 1;
+            min-width: 200px;
+            max-width: 600px;
+        }
+        
+        .book-count {
+            background: #e9ecef;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 0.85em;
+            color: #495057;
+            margin-left: auto;
+        }
+        
+        /* 书籍列表样式 */
+        .book-list { 
+            border-top: 1px solid #eee;
+            margin-top: 15px;
+        }
+        
+        .book-item { 
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+            position: relative;
+            background: white;
+            border-radius: 4px;
+            margin-bottom: 8px;
+        }
+        
+        .book-title { 
+            font-size: 1.1em; 
+            font-weight: bold; 
+            margin-bottom: 4px;
+            color: #333;
+            word-break: break-word;
+        }
+        
+        .book-meta { 
+            color: #666; 
+            margin: 4px 0;
+            font-size: 0.85em;
+            line-height: 1.4;
+        }
+        
+        .book-links a { 
+            margin-right: 10px; 
+            text-decoration: none;
+            color: var(--primary-color);
+            font-size: 0.85em;
+        }
+        
+        /* 表单样式 */
+        .action-form { 
+            background: var(--sidebar-bg); 
+            padding: 12px; 
+            margin-top: 15px;
+        }
+        
+        /* 确保表单元素宽度填满容器 */
+        .form-group input[type="text"],
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        /* 调整表单行布局 */
+        .form-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .form-row .form-group {
+            flex: 1;
+            margin-bottom: 0;
+        }
+
+        /* 单独的表单组样式 */
+        .form-group {
+            margin-bottom: 12px;
+        }
+
+        /* 确保标签和输入框之间有适当间距 */
+        .form-group label {
+            display: block;
+            margin-bottom: 4px;
+        }
+        
+        .form-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+        
+        .form-row > * {
+            flex: 1;
+        }
+        
+        input[type="text"], 
+        select,
+        textarea {
+            padding: 7px 10px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            font-size: 13px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        
+        textarea {
+            min-height: 70px;
+            resize: vertical;
+        }
+        
+        button { 
+            background: var(--primary-color); 
+            color: white; 
+            padding: 7px 12px; 
+            border: none; 
+            cursor: pointer;
+            border-radius: 3px;
+            font-size: 13px;
+            transition: background 0.2s;
+        }
+        
+        button:hover {
+            background: #45a049;
+        }
+        
+        button.small {
+            padding: 5px 10px;
+            font-size: 12px;
+        }
+        
+        button.danger {
+            background: var(--danger-color);
+        }
+        
+        button.danger:hover {
+            background: #d32f2f;
+        }
+        
+        /* 其他元素样式 */
+        .status-message { 
+            color: #dc3545; 
+            margin: 4px 0;
+            font-size: 0.85em;
+        }
+        
+        .douban-section { 
+            background: #fff3cd; 
+            padding: 12px; 
+            margin-bottom: 12px;
+            border-radius: 3px;
+        }
+        
+        .edit-btn {
+            position: absolute;
+            right: 12px;
+            top: 12px;
+            background: #2196F3;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            cursor: pointer;
+            border-radius: 3px;
+            font-size: 12px;
+        }
+        
+        .delete-btn {
+            position: absolute;
+            right: 12px;
+            top: 50px;
+            background: var(--danger-color);
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            cursor: pointer;
+            border-radius: 3px;
+            font-size: 12px;
+        }
+        
+        #shelfTitle {
+            cursor: pointer;
+            padding: 4px;
+            color: #333;
+            margin-bottom: 15px;
+            border-bottom: 1px solid var(--primary-color);
+            display: inline-block;
+            font-size: 1.3em;
+        }
+        
+        hr {
+            border: none;
+            border-top: 1px solid #ddd;
+            margin: 15px 0;
+        }
+        
+        label {
+            font-size: 0.85em;
+            color: #666;
+            margin-bottom: 4px;
+            display: block;
+        }
+        
+        /* 回到顶部按钮 */
+        .back-to-top {
+            position: fixed;
+            right: 30px;
+            bottom: 30px;
+            background: #4CAF50;
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+            opacity: 0;
+            transition: opacity 0.3s, transform 0.3s;
+            z-index: 1000;
+        }
+
+        .back-to-top.visible {
+            opacity: 1;
+        }
+
+        .back-to-top:hover {
+            transform: scale(1.1);
+            background: #45a049;
+        }
+
+        .notification {
+            display: none;
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: #4CAF50;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            z-index: 9999;
+            font-size: 14px;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        .copyright-notice {
+            margin-top: auto; /* 自动填充剩余空间，将内容推到底部 */
+            padding: 10px 0;
+            text-align: center;
+            font-size: 12px;
+            font-style: italic;
+            font-weight: bold;
+            font-family: "Ink Free", "Viner Hand ITC", "Times New Roman", monospace; /* 设置字体 */
+            color: #666;
+            border-top: 1px solid #ddd;
+            margin-bottom: -15px; /* 抵消侧边栏的padding */
+        }
+
+        .import-export-section {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f0f7ff;
+            border-radius: 4px;
+        }
+
+        .import-export-section h4 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            font-size: 1em;
+            color: #333;
+        }
+
+        .file-path-input {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .file-path-input input {
+            flex: 1;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* 响应式调整 */
+        @media (max-width: 768px) {
+            body {
+                flex-direction: column;
+            }
+            
+            .sidebar {
+                width: 100%;
+                height: auto;
+                max-height: 50vh;
+                position: relative;
+            }
+            
+            .main-content {
+                height: auto;
+            }
+            
+            .collapse-btn {
+                right: 10px;
+                top: 10px;
+            }
+            
+            .filter-area {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .book-count {
+                margin-left: 0;
+                margin-top: 10px;
+            }
+            
+            .search-box {
+                width: 100%;
+                max-width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <button class="collapse-btn" onclick="toggleSidebar()">◀</button>
+        <div class="action-form">
+            <h3 style="margin-top: 0; margin-bottom: 15px; font-size: 1.1em;">书籍管理</h3>
+            
+            <div class="douban-section">
+                <div class="form-group">
+                    <label for="doubanUrl">豆瓣书籍链接</label>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="text" id="doubanUrl" placeholder="https://book.douban.com/subject/1234567/" style="flex: 1;">
+                        <button type="button" class="small" onclick="parseDoubanUrl()">解析</button>
+                    </div>
+                </div>
+                <div id="parseStatus" class="status-message"></div>
+            </div>
+
+            <form id="addForm" onsubmit="addBook(event)">
+                <!-- 书名单行 -->
+                <div class="form-group">
+                    <label for="title">书名</label>
+                    <input type="text" id="title" placeholder="书名" required>
+                </div>
+    
+                <!-- 作者单行 -->
+                <div class="form-group">
+                    <label for="author">作者</label>
+                    <input type="text" id="author" placeholder="作者">
+                </div>
+    
+                <!-- 出版社+出版年份同行 -->
+                <div class="form-row">
+                    <div class="form-group" style="flex: 1;">
+                        <label for="publisher">出版社</label>
+                        <input type="text" id="publisher" placeholder="出版社">
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label for="pubdate">出版年份</label>
+                        <input type="text" id="pubdate" placeholder="出版年份">
+                    </div>
+                </div>
+    
+                <!-- 分类单行 -->
+                <div class="form-group">
+                    <label for="category">分类（多个分类用 | 分隔）</label>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="text" id="category" placeholder="例如: 文学 | 小说" list="categories" style="flex: 1;">
+                        <datalist id="categories"></datalist>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="localPath">本地文件路径</label>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="text" id="localPath" placeholder="点击选择文件" style="flex: 1;">
+                        <button type="button" class="small" onclick="document.getElementById('fileInput').click()">选择</button>
+                        <input type="file" id="fileInput" style="display: none;" onchange="handleFileSelect(event)">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="notes">我的笔记</label>
+                    <textarea id="notes" placeholder="记录阅读笔记..."></textarea>
+                </div>
+                
+                <button type="submit" style="width: 100%; margin-top: 8px;">添加书籍 / 保存编辑</button>
+            </form>
+
+            <hr>
+
+            <form onsubmit="removeBook(event)">
+                <div class="form-group">
+                    <label for="removeTitle">删除书籍</label>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="text" id="removeTitle" placeholder="输入要删除的书名" style="flex: 1;">
+                        <button type="submit" class="small">删除</button>
+                    </div>
+                </div>
+            </form>
+
+            <hr>
+
+            <form id="deleteCategoryForm" onsubmit="deleteCategory(event)">
+                <div class="form-group">
+                    <label>删除分类</label>
+                    <div style="display: flex; gap: 8px;">
+                        <select id="deleteCategorySelect" required style="flex: 1;">
+                            <option value="">选择要删除的分类</option>
+                        </select>
+                        <button type="submit" class="small">删除</button>
+                    </div>
+                </div>
+            </form>
+            <!-- 在侧边栏action-form的最后一个</div>前添加 -->
+            <!-- 新增的导入导出区域 -->
+            <div class="import-export-section">
+                <h4>数据备份与恢复</h4>
+                
+                <div class="form-group">
+                    <label>导出书籍数据</label>
+                    <div class="file-path-input">
+                        <input type="text" id="exportPath" placeholder="输入导出文件名称" style="flex: 1;">
+                        <!-- <button type="button" class="small" onclick="document.getElementById('exportFileInput').click()">选择</button> -->
+                        <input type="file" id="exportFileInput" style="display: none;" webkitdirectory directory multiple onchange="handleExportPathSelect(event)">
+                    </div>
+                    <button type="button" class="small" style="width: 100%; margin-top: 5px;" onclick="exportBooks()">导出为JSON文件</button>
+                </div>
+                
+                <div class="form-group">
+                    <label>导入书籍数据</label>
+                    <div class="file-path-input">
+                        <input type="text" id="importPath" placeholder="输入导入文件路径" style="flex: 1;">
+                        <button type="button" class="small" onclick="document.getElementById('importFileInput').click()">选择</button>
+                        <input type="file" id="importFileInput" style="display: none;" onchange="handleImportPathSelect(event)">
+                    </div>
+                    <button type="button" class="small" style="width: 100%; margin-top: 5px;" onclick="importBooks()">从JSON文件导入</button>
+                </div>
+            </div>
+        </div>
+        <div class="copyright-notice">
+            Created by PhilZhu, April, 2025
+        </div>
+    </div>
+    <button class="collapse-btn" onclick="toggleSidebar()">◀</button>
+    
+    <div class="main-content">
+        <h1 id="shelfTitle" ondblclick="editShelfTitle()">我的书架</h1>
+        
+        <div class="filter-area">
+            <div class="category-filter">
+                <label>分类筛选：</label>
+                <select id="categorySelect" onchange="filterBooks()" style="width: 150px;">
+                    <option value="all">全部书籍</option>
+                </select>
+            </div>
+            
+            <div class="book-count" id="bookCount">
+                收录数量：0本
+            </div>
+            
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="搜索书名/作者/出版社..." oninput="searchBooks()" style="width: 100%;">
+            </div>
+        </div>
+
+        <div id="bookList" class="book-list"></div>
+    </div>
+
+    <div class="back-to-top" onclick="scrollToTop()">▲</div>
+
+    <div id="notification" class="notification">
+        <span id="notificationText"></span>
+    </div>
+
+    <script>
+        // 初始化数据
+        let books = JSON.parse(localStorage.getItem('books')) || [];
+        let categories = new Set(JSON.parse(localStorage.getItem('categories')) || []);
+        let shelfTitle = localStorage.getItem('shelfTitle') || '我的书架';
+        let sidebarCollapsed = false;
+
+        // 初始化页面
+        function init() {
+            updateCategoryFilter();
+            updateCategoryDatalist();
+            updateDeleteCategoryList();
+            renderBooks();
+            document.getElementById('shelfTitle').textContent = shelfTitle;
+            updateBookCount();
+            
+            // 监听滚动显示回到顶部按钮
+            window.addEventListener('scroll', toggleBackToTop);
+        }
+
+        // 更新书籍数量统计
+        function updateBookCount(filterCategory = 'all') {
+            const countElement = document.getElementById('bookCount');
+            let count = 0;
+            
+            if (filterCategory === 'all') {
+                count = books.length;
+            } else {
+                count = books.filter(book => 
+                    book.category && book.category.split('|').map(c => c.trim()).includes(filterCategory)
+                ).length;
+            }
+            
+            countElement.textContent = `收录数量：${count}本`;
+        }
+
+        // 侧边栏切换
+        function toggleSidebar() {
+            document.querySelector('.sidebar').classList.toggle('collapsed');
+            document.querySelector('.collapse-btn').textContent = 
+                document.querySelector('.sidebar').classList.contains('collapsed') ? '▶' : '◀';
+        }
+        
+        // 文件选择处理
+        function handleFileSelect(event) {
+            const fileInput = event.target;
+            if (fileInput.files.length === 0) return;
+
+            const file = fileInput.files[0];
+            const fakePath = document.getElementById('localPath').value;
+            const fileName = file.name;
+
+            let defaultPath = '';
+            if (fakePath && !fakePath.includes('fakepath')) {
+                const lastSlashIndex = fakePath.lastIndexOf('\\') !== -1 ? fakePath.lastIndexOf('\\') : fakePath.lastIndexOf('/');
+                if (lastSlashIndex !== -1) {
+                    defaultPath = fakePath.substring(0, lastSlashIndex + 1);
+                }
+            }
+
+            const fullPath = prompt(
+                "由于浏览器安全限制，请手动输入文件完整路径。\n\n" +
+                "已选择文件:\n " + fileName + "\n" +
+                "注意格式示例:\n C:\\Users\\YourName\\Folder\\" + fileName,
+                defaultPath + fileName
+            );
+
+            if (fullPath) {
+                document.getElementById('localPath').value = fullPath.trim();
+            } else {
+                document.getElementById('localPath').value = '';
+                fileInput.value = '';
+            }
+        }
+
+        // 自定义标题编辑功能
+        function editShelfTitle() {
+            const titleEl = document.getElementById('shelfTitle');
+            const originalTitle = titleEl.textContent;
+            
+            titleEl.contentEditable = true;
+            titleEl.focus();
+
+            const finishEdit = () => {
+                titleEl.contentEditable = false;
+                shelfTitle = titleEl.textContent;
+                localStorage.setItem('shelfTitle', shelfTitle);
+            };
+
+            titleEl.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    finishEdit();
+                }
+            });
+
+            titleEl.addEventListener('blur', finishEdit);
+        }
+
+        // 豆瓣解析功能
+        async function parseDoubanUrl() {
+            const doubanUrl = document.getElementById('doubanUrl').value;
+            const statusElement = document.getElementById('parseStatus');
+            
+            if (!isValidDoubanUrl(doubanUrl)) {
+                statusElement.textContent = '⚠️ 请输入正确的豆瓣书籍链接';
+                return;
+            }
+
+            try {
+                statusElement.textContent = '🔍 正在获取书籍信息...';
+                let html = '';
+
+                const proxyUrls = [
+                    'https://api.allorigins.win/raw?url=',
+                ];
+
+                for (let i = 0; i < 20; i++) {
+                    const randomProxy = proxyUrls[Math.floor(Math.random() * proxyUrls.length)];
+                    try {
+                        const response = await fetch(randomProxy + encodeURIComponent(doubanUrl), {
+                            headers: {
+                                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36',
+                                'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+                                'Referer': 'https://www.douban.com/',
+                                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                            },
+                            timeout: 2000,
+                            mode: 'cors',
+                        });
+                        if (response.ok) {
+                            html = await response.text();
+                            console.log(`代理 ${randomProxy} 内容请求成功！`);
+                            break;
+                        }
+                    } catch (e) {
+                        console.log(`代理 ${randomProxy} 尝试失败`);
+                    }
+                }
+
+                if (!html) {
+                    throw new Error('无法获取书籍信息');
+                }
+
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                
+                const bookInfo = {
+                    title: parseTitle(doc),
+                    author: parseAuthors(doc),
+                    publisher: parsePublisher(doc),
+                    pubdate: parsePubdate(doc),
+                    category: parseCategories(doc)
+                };
+
+                document.getElementById('title').value = bookInfo.title;
+                document.getElementById('author').value = bookInfo.author;
+                document.getElementById('publisher').value = bookInfo.publisher;
+                document.getElementById('pubdate').value = bookInfo.pubdate;
+                document.getElementById('category').value = bookInfo.category.split('|')[0].trim();
+                document.getElementById('doubanUrl').value = doubanUrl;
+                
+                statusElement.textContent = '✅ 解析成功！';
+            } catch (error) {
+                console.error('解析失败:', error);
+                statusElement.textContent = '❌ 解析失败，请手动输入书籍信息';
+            }
+        }
+
+        // 豆瓣解析辅助函数
+        function isValidDoubanUrl(url) {
+            return /^https?:\/\/book\.douban\.com\/subject\/\d+/.test(url);
+        }
+
+        function parseTitle(doc) {
+            return doc.querySelector('h1 span')?.textContent.trim() || 
+                   doc.querySelector('title')?.textContent.replace('(豆瓣)', '').trim() || 
+                   '未知书名';
+        }
+
+        function parseAuthors(doc) {
+            const infoText = doc.querySelector('#info')?.textContent || '';
+            const authors = infoText.match(/作者[:：]\s*([^\n]+)/);
+            return authors ? authors[1].trim() : '未知作者';
+        }
+
+        function parsePublisher(doc) {
+            const infoText = doc.querySelector('#info')?.textContent || '';
+            const publisherMatch = infoText.match(/出版社[:：]\s*([^\n]+)/);
+            return publisherMatch ? publisherMatch[1].trim() : '未知出版社';
+        }
+
+        function parsePubdate(doc) {
+            const infoText = doc.querySelector('#info')?.textContent || '';
+            const pubYearMatch = infoText.match(/出版年[:：]\s*(\d{4}-\d{1,2}-\d{1,2}|\d{4})/);
+            return pubYearMatch ? pubYearMatch[1] : '未知年份';
+        }
+
+        function parseCategories(doc) {
+            return Array.from(doc.querySelectorAll('.tag a'))
+                .map(a => a.textContent.trim())
+                .filter(tag => !['小说', '文学'].includes(tag))
+                .join(' | ') || '未分类';
+        }
+
+        // 书籍管理功能
+        function addBook(e) {
+            e.preventDefault();
+            const newBook = {
+                title: document.getElementById('title').value.trim(),
+                author: document.getElementById('author').value.trim(),
+                publisher: document.getElementById('publisher').value.trim(),
+                pubdate: document.getElementById('pubdate').value.trim(),
+                doubanUrl: document.getElementById('doubanUrl').value.trim(),
+                localPath: document.getElementById('localPath').value.trim(),
+                category: document.getElementById('category').value.trim().split('|').map(c => c.trim()).filter(c => c).join(' | '),
+                notes: document.getElementById('notes').value.trim()
+            };
+
+            const exists = books.some(book => 
+                book.title === newBook.title &&
+                book.author === newBook.author &&
+                book.publisher === newBook.publisher &&
+                book.pubdate === newBook.pubdate
+            );
+
+            if (exists) {
+                showNotification('书籍已存在！', 'error');
+                return;
+            }
+
+            // 更新分类集合
+            if (newBook.category) {
+                newBook.category.split('|').forEach(cat => {
+                    categories.add(cat.trim());
+                });
+            }
+
+            books.push(newBook);
+            saveToLocalStorage();
+            clearForm();
+            init();
+            showNotification(`✅ 图书 《 ${newBook.title} 》 添加成功！`, 'success');
+        }
+
+        function editBook(index) {
+            const book = books[index];
+            
+            document.getElementById('title').value = book.title;
+            document.getElementById('author').value = book.author;
+            document.getElementById('publisher').value = book.publisher;
+            document.getElementById('pubdate').value = book.pubdate;
+            document.getElementById('localPath').value = book.localPath;
+            document.getElementById('category').value = book.category;
+            document.getElementById('notes').value = book.notes || '';
+            document.getElementById('doubanUrl').value = book.doubanUrl;
+
+            const form = document.getElementById('addForm');
+            form.onsubmit = function(e) {
+                e.preventDefault();
+                const updatedBook = {
+                    ...book,
+                    title: document.getElementById('title').value.trim(),
+                    author: document.getElementById('author').value.trim(),
+                    publisher: document.getElementById('publisher').value.trim(),
+                    pubdate: document.getElementById('pubdate').value.trim(),
+                    localPath: document.getElementById('localPath').value.trim(),
+                    category: document.getElementById('category').value.trim().split('|').map(c => c.trim()).filter(c => c).join(' | '),
+                    notes: document.getElementById('notes').value.trim()
+                };
+
+                // 更新分类集合
+                if (updatedBook.category) {
+                    updatedBook.category.split('|').forEach(cat => {
+                        categories.add(cat.trim());
+                    });
+                }
+
+                books[index] = updatedBook;
+                saveToLocalStorage();
+                clearForm();
+                form.onsubmit = addBook;
+                init();
+                showNotification(`✅ 图书 《 ${updatedBook.title} 》 修改成功！`, 'success');
+            };
+        }
+
+        // 删除特定书籍
+        function deleteBook(index) {
+            const bookTitle = books[index].title;
+            if (confirm(`确定要删除《${bookTitle}》吗？`)) {
+                books.splice(index, 1);
+                saveToLocalStorage();
+                init();
+                showNotification(`✅ 图书 《 ${bookTitle} 》 已删除`, 'success');
+            }
+        }
+
+        function removeBook(e) {
+            e.preventDefault();
+            const titleToRemove = document.getElementById('removeTitle').value.trim();
+            if (!titleToRemove) {
+                showNotification('请输入要删除的书名', 'error');
+                return;
+            }
+            
+            const bookIndex = books.findIndex(book => book.title === titleToRemove);
+            if (bookIndex === -1) {
+                showNotification('⚠️ 未找到该书名，请确认输入是否正确', 'error');
+                return;
+            }
+            
+            if (confirm(`⚠️ 确定要删除 《 ${titleToRemove} 》 这本书吗？`)) {
+                books.splice(bookIndex, 1);
+                saveToLocalStorage();
+                init();
+                showNotification('✅ 图书删除成功', 'success');
+            }
+        }
+
+        // 分类管理
+        function updateCategoryFilter() {
+            const select = document.getElementById('categorySelect');
+            select.innerHTML = '<option value="all">全部书籍</option>';
+            
+            // 获取所有分类（包括多分类书籍中的分类）
+            const allCategories = new Set();
+            books.forEach(book => {
+                if (book.category) {
+                    book.category.split('|').forEach(cat => {
+                        allCategories.add(cat.trim());
+                    });
+                }
+            });
+            
+            // 按字母顺序排序
+            Array.from(allCategories).sort().forEach(cat => {
+                select.innerHTML += `<option value="${cat}">${cat}</option>`;
+            });
+        }
+
+        function updateCategoryDatalist() {
+            const datalist = document.getElementById('categories');
+            datalist.innerHTML = '';
+            
+            // 获取所有分类（包括多分类书籍中的分类）
+            const allCategories = new Set();
+            books.forEach(book => {
+                if (book.category) {
+                    book.category.split('|').forEach(cat => {
+                        allCategories.add(cat.trim());
+                    });
+                }
+            });
+            
+            Array.from(allCategories).sort().forEach(cat => {
+                datalist.innerHTML += `<option value="${cat}">`;
+            });
+        }
+
+        function updateDeleteCategoryList() {
+            const select = document.getElementById('deleteCategorySelect');
+            select.innerHTML = '<option value="">选择要删除的分类</option>';
+            
+            // 获取所有分类（包括多分类书籍中的分类）
+            const allCategories = new Set();
+            books.forEach(book => {
+                if (book.category) {
+                    book.category.split('|').forEach(cat => {
+                        allCategories.add(cat.trim());
+                    });
+                }
+            });
+            
+            Array.from(allCategories).sort().forEach(cat => {
+                select.innerHTML += `<option value="${cat}">${cat}</option>`;
+            });
+        }
+
+        function deleteCategory(e) {
+            e.preventDefault();
+            const categoryToDelete = document.getElementById('deleteCategorySelect').value;
+            if (!categoryToDelete) return;
+
+            const hasBooks = books.some(book => 
+                book.category && book.category.split('|').map(c => c.trim()).includes(categoryToDelete)
+            );
+            
+            if (hasBooks && !confirm(`该分类下仍有书籍，确认删除吗？相关书籍分类将被清空！`)) return;
+
+            // 更新书籍分类
+            books = books.map(book => {
+                if (book.category) {
+                    const remainingCategories = book.category.split('|')
+                        .map(c => c.trim())
+                        .filter(c => c !== categoryToDelete);
+                        
+                    return {
+                        ...book,
+                        category: remainingCategories.join(' | ') || ''
+                    };
+                }
+                return book;
+            }).filter(book => book.category); // 过滤掉没有分类的书籍
+
+            // 重新构建分类集合
+            categories = new Set();
+            books.forEach(book => {
+                if (book.category) {
+                    book.category.split('|').forEach(cat => {
+                        if (cat.trim()) {
+                            categories.add(cat.trim());
+                        }
+                    });
+                }
+            });
+
+            showNotification(`分类 ${categoryToDelete} 已删除！`, 'success');
+            saveToLocalStorage();
+            init();
+        }
+
+        // 搜索功能
+        function searchBooks() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const filteredBooks = books.filter(book => 
+                book.title.toLowerCase().includes(searchTerm) ||
+                (book.author && book.author.toLowerCase().includes(searchTerm)) ||
+                (book.publisher && book.publisher.toLowerCase().includes(searchTerm))
+            );
+            renderBooks('all', filteredBooks);
+            updateBookCount();
+        }
+
+        // 渲染功能
+        function renderBooks(filterCategory = 'all', bookList = books) {
+            const container = document.getElementById('bookList');
+            container.innerHTML = '';
+
+            bookList.forEach((book, index) => {
+                if (filterCategory !== 'all' && 
+                    !(book.category && book.category.split('|').map(c => c.trim()).includes(filterCategory))) {
+                    return;
+                }
+
+                const bookDiv = document.createElement('div');
+                bookDiv.className = 'book-item';
+                bookDiv.innerHTML = `
+                    <button class="edit-btn" onclick="editBook(${index})">编辑</button>
+                    <button class="delete-btn" onclick="deleteBook(${index})">删除</button>
+                    <div class="book-title">${book.title}</div>
+                    <div class="book-meta">作者：${book.author || '未知'}</div>
+                    <div class="book-meta">出版社：${book.publisher || '未知'} | 出版年：${book.pubdate || '未知'}</div>
+                    ${book.notes ? `<div class="book-meta">笔记：${book.notes}</div>` : ''}
+                    <div class="book-links">
+                        ${book.doubanUrl ? `<a href="${book.doubanUrl}" target="_blank">豆瓣页面</a>` : ''}
+                        ${book.localPath ? `<a href="file:///${book.localPath}">打开本地文件</a>` : ''}
+                    </div>
+                    <div class="book-meta">分类：${book.category || '未分类'}</div>
+                `;
+                container.appendChild(bookDiv);
+            });
+            
+            updateBookCount(filterCategory);
+        }
+
+        function filterBooks() {
+            const selectedCategory = document.getElementById('categorySelect').value;
+            renderBooks(selectedCategory);
+        }
+
+        // 监听滚动显示/隐藏回到顶部按钮
+        window.addEventListener('scroll', toggleBackToTop);
+
+        function toggleBackToTop() {
+            const backToTopBtn = document.querySelector('.back-to-top');
+            if (window.pageYOffset > 300) {
+                backToTopBtn.classList.add('visible');
+            } else {
+                backToTopBtn.classList.remove('visible');
+            }
+        }
+
+        function scrollToTop() {
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+        }
+
+        // 导出路径选择处理
+        function handleExportPathSelect(event) {
+            const fileInput = event.target;
+            if (fileInput.files.length === 0) return;
+
+            const file = fileInput.files[0];
+            const fakePath = document.getElementById('exportPath').value;
+            const fileName = "book_data.json";
+
+            let defaultPath = '';
+            if (fakePath && !fakePath.includes('fakepath')) {
+                const lastSlashIndex = fakePath.lastIndexOf('\\') !== -1 ? fakePath.lastIndexOf('\\') : fakePath.lastIndexOf('/');
+                if (lastSlashIndex !== -1) {
+                    defaultPath = fakePath.substring(0, lastSlashIndex + 1);
+                }
+            }
+
+            const fullPath = prompt(
+                "由于浏览器安全限制，请手动输入导出文件完整路径。\n\n" +
+                "建议文件名:\n " + fileName + "\n" +
+                "注意格式示例:\n C:\\Users\\YourName\\Folder\\" + fileName,
+                defaultPath + fileName
+            );
+
+            if (fullPath) {
+                document.getElementById('exportPath').value = fullPath.trim();
+            } else {
+                document.getElementById('exportPath').value = '';
+                fileInput.value = '';
+            }
+        }
+
+        // 导入路径选择处理
+        function handleImportPathSelect(event) {
+            const fileInput = event.target;
+            if (fileInput.files.length === 0) return;
+
+            const file = fileInput.files[0];
+            document.getElementById('importPath').value = file.name;
+        }
+
+        // 导出书籍数据
+        function exportBooks() {
+            const exportPath = document.getElementById('exportPath').value.trim();
+            if (!exportPath) {
+                showNotification('请先输入导出文件名称', 'error');
+                return;
+            }
+
+            try {
+                const data = {
+                    books: books,
+                    categories: [...categories],
+                    shelfTitle: shelfTitle
+                };
+
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = exportPath.split(/[\\/]/).pop() || 'book_data.json';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                showNotification('导出成功！', 'success');
+            } catch (error) {
+                console.error('导出失败:', error);
+                showNotification('导出失败: ' + error.message, 'error');
+            }
+        }
+
+        // 导入书籍数据
+        function importBooks() {
+            const fileInput = document.getElementById('importFileInput');
+            if (fileInput.files.length === 0) {
+                showNotification('请先选择要导入的JSON文件', 'error');
+                return;
+            }
+
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    
+                    if (!data.books || !Array.isArray(data.books)) {
+                        throw new Error('无效的数据格式');
+                    }
+
+                    if (confirm(`即将导入 ${data.books.length} 本书籍，这会覆盖当前所有数据。确定继续吗？`)) {
+                        books = data.books;
+                        categories = new Set(data.categories || []);
+                        shelfTitle = data.shelfTitle || '我的书架';
+                        
+                        saveToLocalStorage();
+                        init();
+                        showNotification(`成功导入 ${books.length} 本书籍`, 'success');
+                    }
+                } catch (error) {
+                    console.error('导入失败:', error);
+                    showNotification('导入失败: ' + error.message, 'error');
+                }
+            };
+
+            reader.onerror = function() {
+                showNotification('文件读取失败', 'error');
+            };
+
+            reader.readAsText(file);
+        }
+
+        // 显示通知
+        function showNotification(message, type) {
+            const notification = document.getElementById('notification');
+            const notificationText = document.getElementById('notificationText');
+            
+            notificationText.textContent = message;
+            notification.style.backgroundColor = type === 'error' ? '#f44336' : '#4CAF50';
+            notification.style.display = 'block';
+            
+            setTimeout(() => {
+                notification.style.display = 'none';
+            }, 3000);
+        }
+
+        // 工具函数
+        function saveToLocalStorage() {
+            localStorage.setItem('books', JSON.stringify(books));
+            
+            // 更新分类集合
+            const allCategories = new Set();
+            books.forEach(book => {
+                if (book.category) {
+                    book.category.split('|').forEach(cat => {
+                        allCategories.add(cat.trim());
+                    });
+                }
+            });
+            
+            localStorage.setItem('categories', JSON.stringify([...allCategories]));
+        }
+
+        function clearForm() {
+            document.getElementById('addForm').reset();
+            document.getElementById('removeTitle').value = '';
+            document.getElementById('parseStatus').textContent = '';
+        }
+
+        // 初始化执行
+        init();
+    </script>
+</body>
+</html>

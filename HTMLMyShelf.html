@@ -91,12 +91,39 @@
             align-items: center;
             min-width: 180px;
         }
-        
+                
+        /* 搜索框清空按钮样式 */
         .search-box {
+            position: relative;
             flex: 1;
             min-width: 200px;
             max-width: 600px;
         }
+
+        .clear-search {
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: #999;
+            cursor: pointer;
+            font-size: 16px;
+            padding: 0;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+        }
+
+        .clear-search:hover {
+            color: #666;
+            background: #eee;
+        }
+
         
         .book-count {
             background: #e9ecef;
@@ -302,30 +329,40 @@
         /* 回到顶部按钮 */
         .back-to-top {
             position: fixed;
-            right: 30px;
-            bottom: 30px;
-            background: #4CAF50;
-            color: white;
-            width: 40px;
-            height: 40px;
+            right: 20px;
+            bottom: 60px;
+            width: 48px;
+            height: 48px;
+            background: white;
+            color: #8590a6;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
             opacity: 0;
-            transition: opacity 0.3s, transform 0.3s;
-            z-index: 1000;
+            transform: translateY(10px);
+            transition: all 0.3s ease;
+            z-index: 9999; /* 增加 z-index */
+            border: 1px solid #ebebeb;
+            pointer-events: none; /* 初始不可点击 */
         }
 
         .back-to-top.visible {
             opacity: 1;
+            transform: translateY(0);
+            pointer-events: auto; /* 显示时可点击 */
         }
 
         .back-to-top:hover {
-            transform: scale(1.1);
-            background: #45a049;
+            color: #76839b;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .back-to-top svg {
+            width: 24px;
+            height: 24px;
         }
 
         .notification {
@@ -488,8 +525,12 @@
                     <label for="notes">我的笔记</label>
                     <textarea id="notes" placeholder="记录阅读笔记..."></textarea>
                 </div>
-                
-                <button type="submit" style="width: 100%; margin-top: 8px;">添加书籍 / 保存编辑</button>
+                <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 8px;">
+                    <!-- 第一行按钮 -->
+                    <button type="submit" style="width: 100%;">添加书籍 / 保存编辑</button>
+                    <!-- 第二行按钮 -->
+                    <button type="button" style="width: 100%; background: #2196F3;" onclick="cancelEdit()">退出添加 / 取消编辑</button>
+                </div>
             </form>
 
             <hr>
@@ -565,14 +606,19 @@
             </div>
             
             <div class="search-box">
-                <input type="text" id="searchInput" placeholder="搜索书名/作者/出版社..." oninput="searchBooks()" style="width: 100%;">
+                <input type="text" id="searchInput" placeholder="搜索书名/作者/出版社..." oninput="searchBooks()" style="width: 100%; padding-right: 30px;">
+                <button class="clear-search" onclick="clearSearch()" title="清空搜索">×</button>
             </div>
         </div>
 
         <div id="bookList" class="book-list"></div>
     </div>
 
-    <div class="back-to-top" onclick="scrollToTop()">▲</div>
+    <div class="back-to-top" onclick="scrollToTop()" title="回到顶部">
+        <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor">
+            <path fill-rule="evenodd" d="M13.204 3.107a1.75 1.75 0 0 0-2.408 0L3.806 9.73c-1.148 1.088-.378 3.02 1.204 3.02h2.24V20c0 .966.784 1.75 1.75 1.75h6A1.75 1.75 0 0 0 16.75 20v-7.25h2.24c1.582 0 2.353-1.932 1.204-3.02l-6.99-6.623Z" clip-rule="evenodd"></path>
+        </svg>
+    </div>
 
     <div id="notification" class="notification">
         <span id="notificationText"></span>
@@ -593,7 +639,7 @@
             renderBooks();
             document.getElementById('shelfTitle').textContent = shelfTitle;
             updateBookCount();
-            
+            setupBackToTop();
             // 监听滚动显示回到顶部按钮
             window.addEventListener('scroll', toggleBackToTop);
         }
@@ -601,17 +647,24 @@
         // 更新书籍数量统计
         function updateBookCount(filterCategory = 'all') {
             const countElement = document.getElementById('bookCount');
-            let count = 0;
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
             
-            if (filterCategory === 'all') {
-                count = books.length;
-            } else {
-                count = books.filter(book => 
+            let filteredBooks = books;
+            if (filterCategory !== 'all') {
+                filteredBooks = books.filter(book => 
                     book.category && book.category.split('|').map(c => c.trim()).includes(filterCategory)
-                ).length;
+                );
             }
             
-            countElement.textContent = `收录数量：${count}本`;
+            if (searchTerm) {
+                filteredBooks = filteredBooks.filter(book => 
+                    book.title.toLowerCase().includes(searchTerm) ||
+                    (book.author && book.author.toLowerCase().includes(searchTerm)) ||
+                    (book.publisher && book.publisher.toLowerCase().includes(searchTerm))
+                );
+            }
+            
+            countElement.textContent = `收录数量：${filteredBooks.length}本`;
         }
 
         // 侧边栏切换
@@ -784,6 +837,55 @@
         }
 
         // 书籍管理功能
+        let currentEditIndex = -1; // 当前编辑的书籍索引，-1表示添加新书
+        
+        // 修改editBook函数
+        function editBook(index) {
+            // 获取当前显示的书籍列表
+            const selectedCategory = document.getElementById('categorySelect').value;
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            
+            let filteredBooks = books;
+            if (selectedCategory !== 'all') {
+                filteredBooks = books.filter(book => 
+                    book.category && book.category.split('|').map(c => c.trim()).includes(selectedCategory)
+                );
+            }
+            
+            if (searchTerm) {
+                filteredBooks = filteredBooks.filter(book => 
+                    book.title.toLowerCase().includes(searchTerm) ||
+                    (book.author && book.author.toLowerCase().includes(searchTerm)) ||
+                    (book.publisher && book.publisher.toLowerCase().includes(searchTerm))
+                );
+            }
+            
+            // 获取原始索引
+            const originalIndex = books.indexOf(filteredBooks[index]);
+            const book = books[originalIndex];
+            currentEditIndex = originalIndex;
+            
+            document.getElementById('title').value = book.title;
+            document.getElementById('author').value = book.author;
+            document.getElementById('publisher').value = book.publisher;
+            document.getElementById('pubdate').value = book.pubdate;
+            document.getElementById('localPath').value = book.localPath;
+            document.getElementById('category').value = book.category;
+            document.getElementById('notes').value = book.notes || '';
+            document.getElementById('doubanUrl').value = book.doubanUrl;
+            
+            // 滚动到表单顶部
+            document.querySelector('.sidebar').scrollTo(0, 0);
+        }
+
+        // 添加cancelEdit函数
+        function cancelEdit() {
+            currentEditIndex = -1;
+            clearForm();
+            document.getElementById('addForm').onsubmit = addBook;
+        }
+        
+        // 修改addBook函数
         function addBook(e) {
             e.preventDefault();
             const newBook = {
@@ -797,11 +899,13 @@
                 notes: document.getElementById('notes').value.trim()
             };
 
-            const exists = books.some(book => 
+            // 检查是否已存在相同书籍（编辑时排除当前编辑的书籍）
+            const exists = books.some((book, index) => 
                 book.title === newBook.title &&
                 book.author === newBook.author &&
                 book.publisher === newBook.publisher &&
-                book.pubdate === newBook.pubdate
+                book.pubdate === newBook.pubdate &&
+                index !== currentEditIndex
             );
 
             if (exists) {
@@ -816,60 +920,47 @@
                 });
             }
 
-            books.push(newBook);
-            saveToLocalStorage();
-            clearForm();
-            init();
-            showNotification(`✅ 图书 《 ${newBook.title} 》 添加成功！`, 'success');
-        }
-
-        function editBook(index) {
-            const book = books[index];
+            if (currentEditIndex >= 0) {
+                // 更新现有书籍
+                books[currentEditIndex] = newBook;
+                showNotification(`✅ 图书 《 ${newBook.title} 》 修改成功！`, 'success');
+            } else {
+                // 添加新书籍
+                books.push(newBook);
+                showNotification(`✅ 图书 《 ${newBook.title} 》 添加成功！`, 'success');
+            }
             
-            document.getElementById('title').value = book.title;
-            document.getElementById('author').value = book.author;
-            document.getElementById('publisher').value = book.publisher;
-            document.getElementById('pubdate').value = book.pubdate;
-            document.getElementById('localPath').value = book.localPath;
-            document.getElementById('category').value = book.category;
-            document.getElementById('notes').value = book.notes || '';
-            document.getElementById('doubanUrl').value = book.doubanUrl;
-
-            const form = document.getElementById('addForm');
-            form.onsubmit = function(e) {
-                e.preventDefault();
-                const updatedBook = {
-                    ...book,
-                    title: document.getElementById('title').value.trim(),
-                    author: document.getElementById('author').value.trim(),
-                    publisher: document.getElementById('publisher').value.trim(),
-                    pubdate: document.getElementById('pubdate').value.trim(),
-                    localPath: document.getElementById('localPath').value.trim(),
-                    category: document.getElementById('category').value.trim().split('|').map(c => c.trim()).filter(c => c).join(' | '),
-                    notes: document.getElementById('notes').value.trim()
-                };
-
-                // 更新分类集合
-                if (updatedBook.category) {
-                    updatedBook.category.split('|').forEach(cat => {
-                        categories.add(cat.trim());
-                    });
-                }
-
-                books[index] = updatedBook;
-                saveToLocalStorage();
-                clearForm();
-                form.onsubmit = addBook;
-                init();
-                showNotification(`✅ 图书 《 ${updatedBook.title} 》 修改成功！`, 'success');
-            };
+            saveToLocalStorage();
+            cancelEdit(); // 清空表单并重置状态
+            init();
         }
-
+        
         // 删除特定书籍
         function deleteBook(index) {
-            const bookTitle = books[index].title;
+            // 同样的逻辑获取原始索引
+            const selectedCategory = document.getElementById('categorySelect').value;
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            
+            let filteredBooks = books;
+            if (selectedCategory !== 'all') {
+                filteredBooks = books.filter(book => 
+                    book.category && book.category.split('|').map(c => c.trim()).includes(selectedCategory)
+                );
+            }
+            
+            if (searchTerm) {
+                filteredBooks = filteredBooks.filter(book => 
+                    book.title.toLowerCase().includes(searchTerm) ||
+                    (book.author && book.author.toLowerCase().includes(searchTerm)) ||
+                    (book.publisher && book.publisher.toLowerCase().includes(searchTerm))
+                );
+            }
+            
+            const originalIndex = books.indexOf(filteredBooks[index]);
+            const bookTitle = books[originalIndex].title;
+            
             if (confirm(`确定要删除《${bookTitle}》吗？`)) {
-                books.splice(index, 1);
+                books.splice(originalIndex, 1);
                 saveToLocalStorage();
                 init();
                 showNotification(`✅ 图书 《 ${bookTitle} 》 已删除`, 'success');
@@ -897,6 +988,8 @@
                 showNotification('✅ 图书删除成功', 'success');
             }
         }
+
+        
 
         // 分类管理
         function updateCategoryFilter() {
@@ -1003,13 +1096,25 @@
         // 搜索功能
         function searchBooks() {
             const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-            const filteredBooks = books.filter(book => 
+            const selectedCategory = document.getElementById('categorySelect').value;
+            
+            // 先根据当前分类筛选书籍
+            let filteredBooks = books;
+            if (selectedCategory !== 'all') {
+                filteredBooks = books.filter(book => 
+                    book.category && book.category.split('|').map(c => c.trim()).includes(selectedCategory)
+                );
+            }
+            
+            // 然后在筛选后的书籍中搜索
+            filteredBooks = filteredBooks.filter(book => 
                 book.title.toLowerCase().includes(searchTerm) ||
                 (book.author && book.author.toLowerCase().includes(searchTerm)) ||
                 (book.publisher && book.publisher.toLowerCase().includes(searchTerm))
             );
-            renderBooks('all', filteredBooks);
-            updateBookCount();
+            
+            renderBooks(selectedCategory, filteredBooks);
+            updateBookCount(selectedCategory);
         }
 
         // 渲染功能
@@ -1019,18 +1124,7 @@
 
             // 创建显示列表与原始索引的映射
             const displayList = [];
-            books.forEach((book, originalIndex) => {
-                // 分类筛选
-                if (filterCategory !== 'all' && 
-                    !(book.category && book.category.split('|').map(c => c.trim()).includes(filterCategory))) {
-                    return;
-                }
-                
-                // 搜索筛选
-                if (bookList !== books && !bookList.includes(book)) {
-                    return;
-                }
-                
+            bookList.forEach((book, originalIndex) => {
                 displayList.push({ book, originalIndex });
             });
 
@@ -1056,30 +1150,80 @@
             
             updateBookCount(filterCategory);
         }
-        
+
         function filterBooks() {
             const selectedCategory = document.getElementById('categorySelect').value;
-            renderBooks(selectedCategory);
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            
+            let filteredBooks = books;
+            if (selectedCategory !== 'all') {
+                filteredBooks = books.filter(book => 
+                    book.category && book.category.split('|').map(c => c.trim()).includes(selectedCategory)
+                );
+            }
+            
+            if (searchTerm) {
+                filteredBooks = filteredBooks.filter(book => 
+                    book.title.toLowerCase().includes(searchTerm) ||
+                    (book.author && book.author.toLowerCase().includes(searchTerm)) ||
+                    (book.publisher && book.publisher.toLowerCase().includes(searchTerm))
+                );
+            }
+            
+            renderBooks(selectedCategory, filteredBooks);
+            updateBookCount(selectedCategory);
         }
 
-        // 监听滚动显示/隐藏回到顶部按钮
+
+
+        // 清空搜索
+        function clearSearch() {
+            document.getElementById('searchInput').value = '';
+            searchBooks();
+        }
+
+        // 监听滚动事件
         window.addEventListener('scroll', toggleBackToTop);
 
+        // 显示/隐藏回到顶部按钮
+        // 平滑滚动到顶部
+        function scrollToTop() {
+            // 获取主内容区域
+            const mainContent = document.querySelector('.main-content');
+            
+            // 使用主内容区域的滚动而不是window的滚动
+            mainContent.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+        }
+
+        // 修改toggleBackToTop函数
         function toggleBackToTop() {
             const backToTopBtn = document.querySelector('.back-to-top');
-            if (window.pageYOffset > 300) {
+            const mainContent = document.querySelector('.main-content');
+            
+            // 检查主内容区域的滚动位置
+            if (mainContent.scrollTop > 300) {
                 backToTopBtn.classList.add('visible');
             } else {
                 backToTopBtn.classList.remove('visible');
             }
         }
 
-        function scrollToTop() {
-            window.scrollTo({
-                top: 0,
-                behavior: 'smooth'
-            });
+        // 修改setupBackToTop函数
+        function setupBackToTop() {
+            const backToTopBtn = document.querySelector('.back-to-top');
+            const mainContent = document.querySelector('.main-content');
+            
+            // 监听主内容区域的滚动事件
+            mainContent.addEventListener('scroll', toggleBackToTop);
+            
+            // 初始检查
+            toggleBackToTop();
         }
+        // // 初始化时检查一次
+        // toggleBackToTop();
 
         // 导出路径选择处理
         function handleExportPathSelect(event) {

@@ -1017,17 +1017,30 @@
             const container = document.getElementById('bookList');
             container.innerHTML = '';
 
-            bookList.forEach((book, index) => {
+            // 创建显示列表与原始索引的映射
+            const displayList = [];
+            books.forEach((book, originalIndex) => {
+                // 分类筛选
                 if (filterCategory !== 'all' && 
                     !(book.category && book.category.split('|').map(c => c.trim()).includes(filterCategory))) {
                     return;
                 }
+                
+                // 搜索筛选
+                if (bookList !== books && !bookList.includes(book)) {
+                    return;
+                }
+                
+                displayList.push({ book, originalIndex });
+            });
 
+            // 渲染时使用原始索引
+            displayList.forEach(({ book, originalIndex }) => {
                 const bookDiv = document.createElement('div');
                 bookDiv.className = 'book-item';
                 bookDiv.innerHTML = `
-                    <button class="edit-btn" onclick="editBook(${index})">编辑</button>
-                    <button class="delete-btn" onclick="deleteBook(${index})">删除</button>
+                    <button class="edit-btn" onclick="editBook(${originalIndex})">编辑</button>
+                    <button class="delete-btn" onclick="deleteBook(${originalIndex})">删除</button>
                     <div class="book-title">${book.title}</div>
                     <div class="book-meta">作者：${book.author || '未知'}</div>
                     <div class="book-meta">出版社：${book.publisher || '未知'} | 出版年：${book.pubdate || '未知'}</div>
@@ -1043,7 +1056,7 @@
             
             updateBookCount(filterCategory);
         }
-
+        
         function filterBooks() {
             const selectedCategory = document.getElementById('categorySelect').value;
             renderBooks(selectedCategory);
